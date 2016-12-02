@@ -1,6 +1,17 @@
 "use strict"
 
 const Twitter = require('twitter');
+const fs = require('fs');
+const util = require('util');
+
+// Logging
+var log_file = fs.createWriteStream(__dirname + '/debug.log', {flags : 'a'});
+var log_stdout = process.stdout;
+
+console.error = function(d) {
+  log_file.write(util.format("%s> %s", new Date(), d) + '\n');
+  log_stdout.write(util.format(d) + '\n');
+};
 
 const client = new Twitter({
     consumer_key: process.env.TWITTER_CONSUMER_KEY,
@@ -18,7 +29,7 @@ stream.on('data', function(event) {
 });
 
 stream.on('error', function(error) {
-    throw error;
+    console.error(error)
 });
 
 
