@@ -13,6 +13,7 @@ console.error = function(d) {
   log_stdout.write(util.format(d) + '\n');
 };
 
+// Connect to twitter
 const client = new Twitter({
     consumer_key: process.env.TWITTER_CONSUMER_KEY,
     consumer_secret: process.env.TWITTER_CONSUMER_SECRET,
@@ -23,8 +24,18 @@ const client = new Twitter({
 const stream = client.stream('statuses/filter', {follow: 87818409});
 stream.on('data', function(event) {
     if (event.user.id === 87818409) {
-        console.log(event.text);
-        console.log(misspellRandomWords(event.text));
+        client.post(
+            'statuses/update',
+            {status: misspellRandomWords(event.text)},
+            function(error, tweet, response) {
+                if (error) {
+                    console.error(error);
+                } else {
+                    console.log(tweet);  // Tweet body.
+                    console.log(response);  // Raw response object.
+                }
+            }
+        );
     }
 });
 
