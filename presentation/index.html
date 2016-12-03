@@ -24,8 +24,98 @@
 	<body>
 		<div class="reveal">
 			<div class="slides">
-				<section>Slide 1</section>
-				<section>Slide 2</section>
+
+				<section>
+					<h1>Twitterbot</h1>
+					<h2>@Grauniad_news</h2>
+					<p>
+						<small>Created by <a href="http://www.samfrances.co.uk">Sam Frances</a></small>
+					</p>
+					<p>
+						<small><a href="">github.com/samfrances/grauniad-node</a></small>
+					</p>
+
+				</section>
+
+				<section>
+					<h2>Concept</h2>
+					<p class="fragment">The Grauniad is a nickname for the UK national newspaper, the Guardian, because of a reputation for typos.</p>
+					<p class="fragment">The <a href="https://www.twitter.com/grauniad_news">@grauniad_news</a> twitterbot monitors the twitter streaming API and copies tweets from <a href="https://www.twitter.com/guardian">@guardian</a>, adding in spelling mistakes.
+				</section>
+
+				<section>
+					<h2>Programmed in Node</h2>
+					<pre>
+						<code class="hljs javascript">
+const stream = client.stream('statuses/filter', {follow: 87818409});
+stream.on('data', function(event) {
+    if (event.user.id === 87818409) {
+        client.post(
+            'statuses/update',
+            {status: misspellRandomWords(event.text)},
+            function(error, tweet, response) {
+                if (error) {
+                    console.error(error);
+                } else {
+                    console.log(tweet);  // Tweet body.
+                    console.log(response);  // Raw response object.
+                }
+            }
+        );
+    }
+});
+						</code>
+					</pre>
+				</section>
+
+				<section>
+					<h2>Deployed with Ansible</h2>
+					<pre>
+						<code class="hljs yml">
+- name: Provision instance
+  hosts: twitterbot
+  remote_user: ubuntu
+
+  tasks:
+
+    - name: Install packages
+      apt: name={{ item }} state=present
+      with_items:
+        - nodejs
+        - npm
+      become: True
+      become_method: sudo
+      register: apt_result
+      until: apt_result.failed is undefined
+      retries: 150
+      delay: 5
+
+    - name: Create symlink to nodejs
+      shell: ln -s /usr/bin/nodejs /usr/bin/node
+      become: True
+      become_method: sudo
+
+    - name: Upload bot script
+      copy:
+        src: "{{ item }}"
+        dest: /home/ubuntu/
+      with_items:
+        - bot/bot.js
+        - bot/package.json
+        - twitter_secrets.json
+						</code>
+					</pre>
+				</section>
+
+				<section>
+					<h2>Hosted on an Amazon ec2 t2.nano instance</h2>
+					<img src="img/ec2logo.png" style="background-color:white" alt="EC2 logo"/>
+				</section>
+
+				<section>
+					<h1>The end</h1>
+				</section>
+
 			</div>
 		</div>
 
