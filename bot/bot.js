@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 "use strict"
 
-const Twitter = require('twitter');
 const fs = require('fs');
 const util = require('util');
+const Twit = require('twit')
 
 // Logging
 const log_file = fs.createWriteStream(__dirname + '/debug.log', {flags : 'a'});
@@ -18,22 +18,24 @@ console.logWithDate = function(d) {
     log_stdout.write(util.format("\n%s> %s", new Date(), d) + '\n');
 }
 
+
+
 // Read in twitter secrets file
 const twitter_secrets = JSON.parse(fs.readFileSync("twitter_secrets.json"));
 
 
 // Connect to twitter
-const client = new Twitter({
+const client = new Twit({
     consumer_key: twitter_secrets.TWITTER_CONSUMER_KEY,
     consumer_secret: twitter_secrets.TWITTER_CONSUMER_SECRET,
-    access_token_key: twitter_secrets.TWITTER_ACCESS_TOKEN_KEY,
+    access_token: twitter_secrets.TWITTER_ACCESS_TOKEN_KEY,
     access_token_secret: twitter_secrets.TWITTER_ACCESS_TOKEN_SECRET
 });
 
 const stream = client.stream('statuses/filter', {follow: 87818409});
-stream.on('data', function(event) {
-    console.logWithDate("Guardian-related tweet: " + event.text)
+stream.on('tweet', function(event) {
     if (event.user.id === 87818409) {
+        console.logWithDate("Guardian tweet: " + event.text)
         client.post(
             'statuses/update',
             {status: misspellRandomWords(event.text)},
@@ -42,16 +44,18 @@ stream.on('data', function(event) {
                     console.error(error);
                 } else {
                     console.logWithDate("Bot tweet: " + tweet.text);  // Tweet body.
-                    console.log(response);  // Raw response object.
+                    //console.log(response);  // Raw response object.
                 }
             }
         );
+    } else {
+        console.logWithDate("Guardian-related tweet: " + event.text)
     }
 });
 
-stream.on('error', function(error) {
-    console.error(error)
-});
+// stream.on('error', function(error) {
+//     console.error(error)
+// });
 
 
 /* Helper functions */

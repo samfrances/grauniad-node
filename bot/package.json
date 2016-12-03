@@ -1,8 +1,8 @@
 {
-  "name": "threepwood-node",
+  "name": "grauniad-node",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "bot.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -11,6 +11,6 @@
   "license": "ISC",
   "dependencies": {
     "forever": "^0.15.3",
-    "twitter": "^1.5.0"
+    "twit": "^2.2.5"
   }
 }
