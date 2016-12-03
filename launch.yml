@@ -1,0 +1,92 @@
+- name: Launch twitterbot instance
+  hosts: localhost
+  vars_files:
+    - secrets.yml
+  tasks:
+
+    - name: Set up security group for twitter bot
+      ec2_group:
+        name: sg_grauniad_bot
+        description: Security group for Grauniad twitter bot
+        vpc_id: "{{ secrets.vpc_id }}"
+        region: "{{ secrets.cloud_region }}"
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: "{{ secrets.home_ip }}/32"
+
+    - name: Gather security group information
+      command: aws ec2 describe-security-groups --filters Name=vpc-id,Values="{{secrets.vpc_id}}" --region "{{secrets.cloud_region}}"
+      register: sec_groups_query
+      changed_when: false
+
+    - name: Process security groups list
+      set_fact:
+        sec_groups: "{{ sec_groups_query.stdout|from_json }}"
+      when: "sec_groups_query.stdout is defined and {{(sec_groups_query.stdout|length)>0}}"
+
+    - name: Launch twitter bot machine
+      ec2:
+        region: "{{ secrets.cloud_region }}"
+        instance_type: t2.nano
+        image: ami-692d751a
+        count_tag:
+          Name: "Grauniad twitter bot"
+        exact_count: "{{server_count}}"
+        instance_tags:
+          Name: "Grauniad twitter bot"
+          Launcher: Ansible
+        group_id: "{{ sec_groups.SecurityGroups | map(attribute='GroupId') | list }}"
+        assign_public_ip: True
+        vpc_subnet_id: "{{ secrets.vpc_subnet_id }}"
+        key_name: "{{ secrets.key_name }}"
+        wait: True
+      register: ec2_twitterbots
+
+    - name: Add new instance to host group
+      add_host: hostname={{ item.public_ip }} groupname=twitterbot
+      with_items: '{{ ec2_twitterbots.instances }}'
+
+    - name: Wait for SSH to come up
+      wait_for: host={{ item.public_dns_name }} port=22 delay=60 timeout=320 state=started
+      with_items: '{{ ec2_twitterbots.instances }}'
+      when: server_count|int > 0
+
+- name: Provision instance
+  hosts: twitterbot
+  remote_user: ubuntu
+
+  tasks:
+
+    - name: Download node version 6.x
+      shell: curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
+
+    - name: Install node
+      apt: name=nodejs state=present
+      become: True
+      become_method: sudo
+
+    - name: Install daemon package
+      apt: name=daemon state=present
+      become: True
+      become_method: sudo
+
+    - name: Upload bot script
+      copy:
+        src: bot/{{ item }}
+        dest: /home/ubuntu/
+      with_items:
+        - bot.js
+        - package.json
+
+    - name: Install npm package
+      shell: npm install
+
+    - name: Start bot as daemon
+      shell: daemon -- node bot.js
+      environment:
+        TWITTER_CONSUMER_KEY: secrets.TWITTER_CONSUMER_KEY
+        TWITTER_CONSUMER_SECRET: secrets.TWITTER_CONSUMER_SECRET
+        TWITTER_ACCESS_TOKEN_KEY: secrets.TWITTER_ACCESS_TOKEN_KEY
+        TWITTER_ACCESS_TOKEN_SECRET: secrets.TWITTER_ACCESS_TOKEN_SECRET
