@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 "use strict"
 
 const Twitter = require('twitter');
@@ -5,20 +6,24 @@ const fs = require('fs');
 const util = require('util');
 
 // Logging
-var log_file = fs.createWriteStream(__dirname + '/debug.log', {flags : 'a'});
-var log_stdout = process.stdout;
+const log_file = fs.createWriteStream(__dirname + '/debug.log', {flags : 'a'});
+const log_stdout = process.stdout;
 
 console.error = function(d) {
   log_file.write(util.format("%s> %s", new Date(), d) + '\n');
   log_stdout.write(util.format(d) + '\n');
 };
 
+// Read in twitter secrets file
+const twitter_secrets = JSON.parse(fs.readFileSync("twitter_secrets.json"));
+
+
 // Connect to twitter
 const client = new Twitter({
-    consumer_key: process.env.TWITTER_CONSUMER_KEY,
-    consumer_secret: process.env.TWITTER_CONSUMER_SECRET,
-    access_token_key: process.env.TWITTER_ACCESS_TOKEN_KEY,
-    access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET
+    consumer_key: twitter_secrets.TWITTER_CONSUMER_KEY,
+    consumer_secret: twitter_secrets.TWITTER_CONSUMER_SECRET,
+    access_token_key: twitter_secrets.TWITTER_ACCESS_TOKEN_KEY,
+    access_token_secret: twitter_secrets.TWITTER_ACCESS_TOKEN_SECRET
 });
 
 const stream = client.stream('statuses/filter', {follow: 87818409});

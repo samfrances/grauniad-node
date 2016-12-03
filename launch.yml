@@ -59,34 +59,40 @@
 
   tasks:
 
-    - name: Download node version 6.x
-      shell: curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
-
-    - name: Install node
-      apt: name=nodejs state=present
+    - name: Install packages
+      apt: name={{ item }} state=present
+      with_items:
+        - nodejs
+        - npm
       become: True
       become_method: sudo
+      register: apt_result
+      until: apt_result.failed is undefined
+      retries: 150
+      delay: 5
 
-    - name: Install daemon package
-      apt: name=daemon state=present
+    - name: Create symlink to nodejs
+      shell: ln -s /usr/bin/nodejs /usr/bin/node
       become: True
       become_method: sudo
 
     - name: Upload bot script
       copy:
-        src: bot/{{ item }}
+        src: "{{ item }}"
         dest: /home/ubuntu/
       with_items:
-        - bot.js
-        - package.json
+        - bot/bot.js
+        - bot/package.json
+        - twitter_secrets.json
 
     - name: Install npm package
       shell: npm install
 
+    - name: Install forever npm package
+      shell: npm install forever -g
+      become: True
+      become_method: sudo
+
+    # https://github.com/foreverjs/forever
     - name: Start bot as daemon
-      shell: daemon -- node bot.js
-      environment:
-        TWITTER_CONSUMER_KEY: secrets.TWITTER_CONSUMER_KEY
-        TWITTER_CONSUMER_SECRET: secrets.TWITTER_CONSUMER_SECRET
-        TWITTER_ACCESS_TOKEN_KEY: secrets.TWITTER_ACCESS_TOKEN_KEY
-        TWITTER_ACCESS_TOKEN_SECRET: secrets.TWITTER_ACCESS_TOKEN_SECRET
+      shell: forever start bot.js
