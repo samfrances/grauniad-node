@@ -11,8 +11,12 @@ const log_stdout = process.stdout;
 
 console.error = function(d) {
   log_file.write(util.format("%s> %s", new Date(), d) + '\n');
-  log_stdout.write(util.format(d) + '\n');
+  log_stdout.write(util.format("%s> %s", new Date(), d) + '\n');
 };
+
+console.logWithDate = function(d) {
+    log_stdout.write(util.format("\n%s> %s", new Date(), d) + '\n');
+}
 
 // Read in twitter secrets file
 const twitter_secrets = JSON.parse(fs.readFileSync("twitter_secrets.json"));
@@ -28,6 +32,7 @@ const client = new Twitter({
 
 const stream = client.stream('statuses/filter', {follow: 87818409});
 stream.on('data', function(event) {
+    console.logWithDate("Guardian-related tweet: " + event.text)
     if (event.user.id === 87818409) {
         client.post(
             'statuses/update',
@@ -36,7 +41,7 @@ stream.on('data', function(event) {
                 if (error) {
                     console.error(error);
                 } else {
-                    console.log(tweet);  // Tweet body.
+                    console.logWithDate("Bot tweet: " + tweet.text);  // Tweet body.
                     console.log(response);  // Raw response object.
                 }
             }
