@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-"use strict"
+"use strict";
 
 const fs = require('fs');
 const util = require('util');
@@ -16,7 +16,7 @@ console.error = function(d) {
 
 console.logWithDate = function(d) {
     log_stdout.write(util.format("\n%s> %s", new Date(), d) + '\n');
-}
+};
 
 // Heartbeat to make sure the process is still running
 setInterval(function () {
@@ -41,7 +41,7 @@ const client = new Twit({
 const stream = client.stream('statuses/filter', {follow: 87818409});
 stream.on('tweet', function(event) {
     if (event.user.id === 87818409) {
-        console.logWithDate("Guardian tweet: " + event.text)
+        console.logWithDate("Guardian tweet: " + event.text);
         client.post(
             'statuses/update',
             {status: misspellRandomWords(event.text)},
@@ -55,7 +55,7 @@ stream.on('tweet', function(event) {
             }
         );
     } else {
-        console.logWithDate("Guardian-related tweet: " + event.text)
+        console.logWithDate("Guardian-related tweet: " + event.text);
     }
 });
 
@@ -73,12 +73,12 @@ stream.on('error', function(error) {
 });
 
 stream.on('connect', function (conn) {
-  console.logWithDate('connecting')
-})
+  console.logWithDate('connecting');
+});
 
 stream.on('reconnect', function (reconn, res, interval) {
-  console.logWithDate('reconnecting. statusCode:', res.statusCode)
-})
+  console.logWithDate('reconnecting. statusCode:', res.statusCode);
+});
 
 
 /* Helper functions */
@@ -87,6 +87,10 @@ function swapRandomLetters(word) {
     const limit = word.length;
     const iFirstLetter = Math.floor(Math.random() * limit);
     var iSecondLetter = Math.floor(Math.random() * limit);
+
+    if (word.length === 1) {
+        return word;
+    }
 
     while (iFirstLetter === iSecondLetter) {
         iSecondLetter = Math.floor(Math.random() * limit);
@@ -103,12 +107,19 @@ const isLink = word => word.substring(0,4) === "http";
 
 const isMention = word => word[0] === "@";
 
+const numberOfDistinctLetters = word => Array.from(new Set(word)).length;
+
+const isSwappable = word =>
+    !isLink(word) && !isMention(word) && numberOfDistinctLetters(word) > 1;
+
 function countSwappableWords(wordList) {
-    return wordList.filter(word => !isLink(word) && !isMention(word)).length;
+    return wordList.filter(isSwappable).length;
 }
 
 
 function misspellRandomWords(sentence) {
+    var iFirstWord;
+    var iSecondWord;
     let words = sentence.split(" ");
     const limit = words.length;
 
@@ -119,7 +130,7 @@ function misspellRandomWords(sentence) {
 
     if (numberSwappable > 0) {
         // Choose a first word, filtering out urls
-        var iFirstWord = Math.floor(Math.random() * limit);
+        iFirstWord = Math.floor(Math.random() * limit);
         while (isLink(words[iFirstWord]) || isMention(words[iFirstWord])) {
             iFirstWord = Math.floor(Math.random() * limit);
         }
@@ -128,7 +139,7 @@ function misspellRandomWords(sentence) {
 
     if (numberSwappable > 1) {
         // Choose second misspelled word, and make sure it isn't the first or an URL
-        var iSecondWord = Math.floor(Math.random() * limit);
+        iSecondWord = Math.floor(Math.random() * limit);
         while (isLink(words[iSecondWord]) ||
                 iSecondWord === iFirstWord ||
                 words[iSecondWord][0] === "@") {
