@@ -1,6 +1,6 @@
 To launch the twitterbot:
 ```
-ansible-playbook -e server_count=1 launch.yml
+ANSIBLE_HOST_KEY_CHECKING="false" ansible-playbook -e server_count=1 launch.yml
 ```
 
 The playbook assumes that there is a file `twitter_secrets.json` in the same
