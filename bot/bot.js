@@ -3,21 +3,25 @@
 
 const fs = require('fs');
 const util = require('util');
-const Twit = require('twit')
+const Twit = require('twit');
 
 // Logging
-const log_file = fs.createWriteStream(__dirname + '/debug.log', {flags : 'a'});
+const error_log_file = fs.createWriteStream(__dirname + '/debug.log', {flags : 'a'});
 const log_stdout = process.stdout;
 
 console.error = function(d) {
-  log_file.write(util.format("%s> %s", new Date(), d) + '\n');
-  log_stdout.write(util.format("%s> %s", new Date(), d) + '\n');
+  error_log_file.write(util.format("\n%s> %s", new Date(), d) + '\n');
+  log_stdout.write(util.format("\n%s> %s", new Date(), d) + '\n');
 };
 
 console.logWithDate = function(d) {
     log_stdout.write(util.format("\n%s> %s", new Date(), d) + '\n');
 }
 
+// Heartbeat to make sure the process is still running
+setInterval(function () {
+  console.logWithDate('Program heartbeat');
+}, 60*1000);
 
 
 // Read in twitter secrets file
@@ -29,9 +33,11 @@ const client = new Twit({
     consumer_key: twitter_secrets.TWITTER_CONSUMER_KEY,
     consumer_secret: twitter_secrets.TWITTER_CONSUMER_SECRET,
     access_token: twitter_secrets.TWITTER_ACCESS_TOKEN_KEY,
-    access_token_secret: twitter_secrets.TWITTER_ACCESS_TOKEN_SECRET
+    access_token_secret: twitter_secrets.TWITTER_ACCESS_TOKEN_SECRET,
+    timeouts_ms: 60*1000
 });
 
+// Main
 const stream = client.stream('statuses/filter', {follow: 87818409});
 stream.on('tweet', function(event) {
     if (event.user.id === 87818409) {
@@ -53,9 +59,26 @@ stream.on('tweet', function(event) {
     }
 });
 
-// stream.on('error', function(error) {
-//     console.error(error)
-// });
+// Log various types of messages for debugging
+stream.on('limit', function(error) {
+    console.error(error);
+});
+
+stream.on('disconnect', function(error) {
+    console.error(error);
+});
+
+stream.on('error', function(error) {
+    console.error(error);
+});
+
+stream.on('connect', function (conn) {
+  console.logWithDate('connecting')
+})
+
+stream.on('reconnect', function (reconn, res, interval) {
+  console.logWithDate('reconnecting. statusCode:', res.statusCode)
+})
 
 
 /* Helper functions */
@@ -75,31 +98,44 @@ function swapRandomLetters(word) {
     return letters.join("");
 }
 
-function isLink(word) {
-    // Very crude URL check
-    return word.substring(0,4) === "http";
+// Very crude URL check
+const isLink = word => word.substring(0,4) === "http";
+
+const isMention = word => word[0] === "@";
+
+function countSwappableWords(wordList) {
+    return wordList.filter(word => !isLink(word) && !isMention(word)).length;
 }
+
 
 function misspellRandomWords(sentence) {
     let words = sentence.split(" ");
     const limit = words.length;
 
-    // Choose a first word, filtering out urls
-    var iFirstWord = Math.floor(Math.random() * limit);
-    while (isLink(words[iFirstWord]) || words[iFirstWord][0] === "@" ) {
-        iFirstWord = Math.floor(Math.random() * limit);
+    const numberSwappable = countSwappableWords(words);
+    if (numberSwappable === 0) {
+        return sentence;
     }
 
-    // Choose second misspelled word, and make sure it isn't the first or an URL
-    var iSecondWord = Math.floor(Math.random() * limit);
-    while (isLink(words[iSecondWord]) ||
-            iSecondWord === iFirstWord ||
-            words[iSecondWord][0] === "@") {
-        iSecondWord = Math.floor(Math.random() * limit);
+    if (numberSwappable > 0) {
+        // Choose a first word, filtering out urls
+        var iFirstWord = Math.floor(Math.random() * limit);
+        while (isLink(words[iFirstWord]) || isMention(words[iFirstWord])) {
+            iFirstWord = Math.floor(Math.random() * limit);
+        }
+        words[iFirstWord] = swapRandomLetters(words[iFirstWord]);
     }
 
-    words[iFirstWord] = swapRandomLetters(words[iFirstWord]);
-    words[iSecondWord] = swapRandomLetters(words[iSecondWord]);
+    if (numberSwappable > 1) {
+        // Choose second misspelled word, and make sure it isn't the first or an URL
+        var iSecondWord = Math.floor(Math.random() * limit);
+        while (isLink(words[iSecondWord]) ||
+                iSecondWord === iFirstWord ||
+                words[iSecondWord][0] === "@") {
+            iSecondWord = Math.floor(Math.random() * limit);
+        }
+        words[iSecondWord] = swapRandomLetters(words[iSecondWord]);
+    }
 
     return words.join(" ");
 }
