@@ -88,12 +88,18 @@ function swapRandomLetters(word) {
     const iFirstLetter = Math.floor(Math.random() * limit);
     var iSecondLetter = Math.floor(Math.random() * limit);
 
-    if (word.length === 1) {
+    if (word.length <= 1) {
         return word;
     }
 
+    let nLoops = 0; // To detect and log infinite loops
     while (iFirstLetter === iSecondLetter) {
         iSecondLetter = Math.floor(Math.random() * limit);
+
+        // Infinite loop detection
+        if (++nLoops > 1000) {
+            console.error("Infinite loop detected on word: " + word);
+        }
     }
 
     let letters = word.split("");
@@ -109,42 +115,82 @@ const isMention = word => word[0] === "@";
 
 const numberOfDistinctLetters = word => Array.from(new Set(word)).length;
 
+/* Determines if a word is 'swappable'. Swappable words are words which are not
+ * URLs or @mentions, are not empty strings, and have more than one distinct
+ * letter, and therefore are suitable for having their spelling changed by
+ * swapping random letters (carried out by a different function)
+ */
 const isSwappable = word =>
-    !isLink(word) && !isMention(word) && numberOfDistinctLetters(word) > 1;
+    !isLink(word) &&
+    !isMention(word) &&
+    numberOfDistinctLetters(word) > 1 &&
+    word.length > 0;
 
 function countSwappableWords(wordList) {
     return wordList.filter(isSwappable).length;
 }
 
-
+/* Chooses two random words from the text of a tweet and produces a new tweet
+ * with two random words misspelled. Avoids misspelling links or mentions.
+ */
 function misspellRandomWords(sentence) {
     var iFirstWord;
     var iSecondWord;
     let words = sentence.split(" ");
     const limit = words.length;
 
+    // Count the number of swappable words
     const numberSwappable = countSwappableWords(words);
+
+    // If there aren't any swappable words, return the sentence unchanged.
     if (numberSwappable === 0) {
         return sentence;
     }
 
+    // If there is at least one swappable word, choose a random swappable word
+    // and swap two of its letters so it is misspelled.
     if (numberSwappable > 0) {
-        // Choose a first word, filtering out urls
+        // Choose a word
         iFirstWord = Math.floor(Math.random() * limit);
-        while (isLink(words[iFirstWord]) || isMention(words[iFirstWord])) {
+
+        // Keep choosing words until we choose a swappable one
+
+        let nLoops = 0; // Infinite loop error detection
+        while (!isSwappable(words[iFirstWord])) {
             iFirstWord = Math.floor(Math.random() * limit);
+
+            // Infinite loop detection
+            if (++nLoops > 1000) {
+                console.error("Infinite loop detected on sentence: " + sentence);
+            }
+
         }
+
+        // Replace the chosen word with a misspelled version
         words[iFirstWord] = swapRandomLetters(words[iFirstWord]);
     }
 
+    // If there are at least two swappable words, choose a second and
+    // scramble its spelling as well.
     if (numberSwappable > 1) {
-        // Choose second misspelled word, and make sure it isn't the first or an URL
+        // Choose second swappable word to misspell, and make sure it isn't the
+        // first or a URL.
         iSecondWord = Math.floor(Math.random() * limit);
-        while (isLink(words[iSecondWord]) ||
-                iSecondWord === iFirstWord ||
-                words[iSecondWord][0] === "@") {
+
+        // Keep choosing words until a swappable one is chosen
+
+        let nLoops = 0; // infinite loop error detection
+        while (!isSwappable(words[iSecondWord])) {
             iSecondWord = Math.floor(Math.random() * limit);
+
+            // Infinite loop detection
+            if (++nLoops > 1000) {
+                console.error("Infinite loop detected on sentence: " + sentence);
+            }
+
         }
+
+        // Misspell the second word
         words[iSecondWord] = swapRandomLetters(words[iSecondWord]);
     }
 
